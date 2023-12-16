@@ -14,12 +14,15 @@ import (
 )
 
 func checkSMB(username, password, host string) bool {
-	// Adjust command to use an SMB client, e.g., smbclient
-	cmd := exec.Command("smbclient", fmt.Sprintf("-L \\\\%s", host), fmt.Sprintf("-U %s%%%s", username, password))
+	// Construct the smbmap command
+	cmd := exec.Command("smbmap", "-d", "active.htb", "-u", username, "-p", password, "-H", host)
+
+	// Redirect the standard output and error to capture the command's output
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 
+	// Run the smbmap command
 	err := cmd.Run()
 
 	if err != nil {
@@ -27,9 +30,36 @@ func checkSMB(username, password, host string) bool {
 		return false
 	}
 
-	fmt.Printf("Success SMB on %s with %s/%s\n", host, username, password)
+	// Extract and print the specific part of the smbmap results
+	result := extractSMBMapResult(out.String())
+	fmt.Printf("\x1b[31mYou are connected to SMB on port 445!\x1b[0m\n")
+	fmt.Println(result)
+
 	return true
 }
+
+func extractSMBMapResult(output string) string {
+	lines := strings.Split(output, "\n")
+
+	// Search for the line containing "IP:", "Name:", and "Status:"
+	var startIndex int
+	for i, line := range lines {
+		if strings.Contains(line, "IP:") && strings.Contains(line, "Name:") && strings.Contains(line, "Status:") {
+			startIndex = i
+			break
+		}
+	}
+
+	if startIndex == 0 {
+		return "SMBMap result not found in output."
+	}
+
+	// Extract the relevant lines starting from the identified index
+	result := strings.Join(lines[startIndex:], "\n")
+
+	return result
+}
+
 func checkFTP(username, password, host string) bool {
 	// Prepare the FTP command sequence
 	ftpCmd := fmt.Sprintf("open %s\nuser %s %s\nbye\n", host, username, password)
@@ -258,7 +288,7 @@ func main() {
 				}
 			}
 		} else {
-			fmt.Printf("WinRM port (HTTP) is closed on %s, skipping WinRM check.\n", host)
+			fmt.Printf("WinRM port is closed on %s, skipping WinRM check.\n", host)
 		}
 	}
 
