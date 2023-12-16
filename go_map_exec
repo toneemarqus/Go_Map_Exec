@@ -13,10 +13,17 @@ import (
 	"time"
 )
 
-func checkSMB(username, password, host string) bool {
+func checkSMB(username, password, host, domain string) bool {
 	// Construct the smbmap command
-	cmd := exec.Command("smbmap", "-d", "active.htb", "-u", username, "-p", password, "-H", host)
+	var cmdArgs []string
+	cmdArgs = append(cmdArgs, "-u", username, "-p", password, "-H", host)
 
+	// Conditionally include the domain if it's provided
+	if domain != "" {
+		cmdArgs = append(cmdArgs, "-d", domain)
+	}
+
+	cmd := exec.Command("smbmap", cmdArgs...)
 	// Redirect the standard output and error to capture the command's output
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -32,7 +39,7 @@ func checkSMB(username, password, host string) bool {
 
 	// Extract and print the specific part of the smbmap results
 	result := extractSMBMapResult(out.String())
-	fmt.Printf("\x1b[31mYou are connected to SMB on port 445!\x1b[0m\n")
+	fmt.Printf("\033[34mYou are connected to SMB on port 445 with credentials: %s : %s\033[0m\n", username, password) // Blue
 	fmt.Println(result)
 
 	return true
@@ -200,7 +207,8 @@ func main() {
 	var singleUsername, singlePassword string
 	flag.StringVar(&singleUsername, "u", "", "Single username")
 	flag.StringVar(&singlePassword, "p", "", "Single password")
-
+	var domain string
+	flag.StringVar(&domain, "d", "", "Domain")
 	usernameFile := flag.String("uf", "", "Username file")
 	passwordFile := flag.String("pf", "", "Password file")
 
@@ -239,7 +247,10 @@ func main() {
 		passwords = []string{singlePassword}
 	}
 
-	for _, host := range allHosts {
+	for hostIndex, host := range allHosts {
+		// Display a yellow message when starting to scan a host
+		fmt.Printf("\033[33mScanning host %d/%d (%s)...\033[0m\n", hostIndex+1, len(allHosts), host)
+
 		if isPortOpen(host, "3389", 5*time.Second) { // Check for RDP port
 			for _, username := range usernames {
 				for _, password := range passwords {
@@ -253,12 +264,14 @@ func main() {
 		if isPortOpen(host, "445", 5*time.Second) { // Check for SMB port
 			for _, username := range usernames {
 				for _, password := range passwords {
-					checkSMB(username, password, host)
+					// Pass the domain if it's provided, otherwise pass an empty string
+					checkSMB(username, password, host, domain)
 				}
 			}
 		} else {
 			fmt.Printf("SMB port is closed on %s, skipping SMB check.\n", host)
 		}
+
 		if isPortOpen(host, "21", 5*time.Second) {
 			for _, username := range usernames {
 				for _, password := range passwords {
