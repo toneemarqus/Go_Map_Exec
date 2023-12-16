@@ -7,10 +7,101 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
+	"os/exec" // Only one import for os/exec
+	"strconv" // This is needed for strconv.Atoi in expandHostRange
 	"strings"
 	"time"
 )
+
+func checkSMB(username, password, host string) bool {
+	// Adjust command to use an SMB client, e.g., smbclient
+	cmd := exec.Command("smbclient", fmt.Sprintf("-L \\\\%s", host), fmt.Sprintf("-U %s%%%s", username, password))
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+
+	err := cmd.Run()
+
+	if err != nil {
+		fmt.Printf("Failed SMB on %s with %s/%s: %s\n", host, username, password, out.String())
+		return false
+	}
+
+	fmt.Printf("Success SMB on %s with %s/%s\n", host, username, password)
+	return true
+}
+func checkFTP(username, password, host string) bool {
+	// Prepare the FTP command sequence
+	ftpCmd := fmt.Sprintf("open %s\nuser %s %s\nbye\n", host, username, password)
+	cmd := exec.Command("ftp")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+
+	// Pipe the commands into the FTP client
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		fmt.Printf("Failed to open stdin to ftp command: %s\n", err)
+		return false
+	}
+
+	// Start the FTP client
+	if err := cmd.Start(); err != nil {
+		fmt.Printf("Failed to start ftp command: %s\n", err)
+		return false
+	}
+
+	// Send the commands to the FTP client
+	_, err = stdin.Write([]byte(ftpCmd))
+	if err != nil {
+		fmt.Printf("Failed to write to stdin: %s\n", err)
+		return false
+	}
+	stdin.Close()
+
+	// Wait for the FTP client to finish
+	err = cmd.Wait()
+
+	if err != nil {
+		fmt.Printf("FTP login failed on %s with %s/%s: %s\n", host, username, password, out.String())
+		return false
+	}
+
+	fmt.Printf("FTP login successful on %s with %s/%s\n", host, username, password)
+	return true
+}
+
+func checkSSH(username, password, host string) bool {
+	// Using sshpass for simplicity; replace with appropriate SSH handling logic
+	cmd := exec.Command("sshpass", "-p", password, "ssh", fmt.Sprintf("%s@%s", username, host), "exit")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+
+	err := cmd.Run()
+
+	if err != nil {
+		fmt.Printf("Failed SSH on %s with %s/%s: %s\n", host, username, password, out.String())
+		return false
+	}
+
+	fmt.Printf("Success SSH on %s with %s/%s\n", host, username, password)
+	return true
+}
+func checkWinRM(username, password, host string) bool {
+	// Construct the command to run the Python script
+	cmd := exec.Command("python", "winrm_check.py", host, username, password)
+
+	// Capture the output of the Python script
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Printf("Failed WinRM on %s with %s/%s: %s\n", host, username, password, output)
+		return false
+	}
+
+	fmt.Printf("Success WinRM on %s with %s/%s\n", host, username, password)
+	return true
+}
 
 func checkRDP(username, password, host string) bool {
 	cmd := exec.Command("xfreerdp", fmt.Sprintf("/u:%s", username), fmt.Sprintf("/p:%s", password), fmt.Sprintf("/v:%s", host))
@@ -76,62 +167,101 @@ func expandHostRange(hostRange string) ([]string, error) {
 }
 
 func main() {
-    var singleUsername, singlePassword string
-    flag.StringVar(&singleUsername, "u", "", "Single username")
-    flag.StringVar(&singlePassword, "p", "", "Single password")
+	var singleUsername, singlePassword string
+	flag.StringVar(&singleUsername, "u", "", "Single username")
+	flag.StringVar(&singlePassword, "p", "", "Single password")
 
-    usernameFile := flag.String("uf", "", "Username file")
-    passwordFile := flag.String("pf", "", "Password file")
+	usernameFile := flag.String("uf", "", "Username file")
+	passwordFile := flag.String("pf", "", "Password file")
 
-    flag.Parse()
+	flag.Parse()
 
-    var allHosts []string
-    for _, arg := range flag.Args() {
-        expandedHosts, err := expandHostRange(arg)
-        if err != nil {
-            fmt.Printf("Error expanding host range '%s': %v\n", arg, err)
-            continue
-        }
-        allHosts = append(allHosts, expandedHosts...)
-    }
+	var allHosts []string
+	for _, arg := range flag.Args() {
+		expandedHosts, err := expandHostRange(arg)
+		if err != nil {
+			fmt.Printf("Error expanding host range '%s': %v\n", arg, err)
+			continue
+		}
+		allHosts = append(allHosts, expandedHosts...)
+	}
 
-    var usernames, passwords []string
-    var err error
+	var usernames, passwords []string
+	var err error
 
-    if *usernameFile != "" {
-        usernames, err = readLines(*usernameFile)
-        if err != nil {
-            fmt.Printf("Error reading username file: %v\n", err)
-            return
-        }
-    } else {
-        usernames = []string{singleUsername}
-    }
+	if *usernameFile != "" {
+		usernames, err = readLines(*usernameFile)
+		if err != nil {
+			fmt.Printf("Error reading username file: %v\n", err)
+			return
+		}
+	} else {
+		usernames = []string{singleUsername}
+	}
 
-    if *passwordFile != "" {
-        passwords, err = readLines(*passwordFile)
-        if err != nil {
-            fmt.Printf("Error reading password file: %v\n", err)
-            return
-        }
-    } else {
-        passwords = []string{singlePassword}
-    }
+	if *passwordFile != "" {
+		passwords, err = readLines(*passwordFile)
+		if err != nil {
+			fmt.Printf("Error reading password file: %v\n", err)
+			return
+		}
+	} else {
+		passwords = []string{singlePassword}
+	}
 
-    for _, host := range allHosts {
-        if !isPortOpen(host, "3389", 5*time.Second) {
-            fmt.Printf("RDP port is closed on %s, skipping.\n", host)
-            continue
-        }
+	for _, host := range allHosts {
+		if isPortOpen(host, "3389", 5*time.Second) { // Check for RDP port
+			for _, username := range usernames {
+				for _, password := range passwords {
+					checkRDP(username, password, host)
+				}
+			}
+		} else {
+			fmt.Printf("RDP port is closed on %s, skipping RDP check.\n", host)
+		}
 
-        for _, username := range usernames {
-            for _, password := range passwords {
-                if checkRDP(username, password, host) {
-                    // Optionally break if you only want the first successful login per host
-                }
-            }
-        }
-    }
+		if isPortOpen(host, "445", 5*time.Second) { // Check for SMB port
+			for _, username := range usernames {
+				for _, password := range passwords {
+					checkSMB(username, password, host)
+				}
+			}
+		} else {
+			fmt.Printf("SMB port is closed on %s, skipping SMB check.\n", host)
+		}
+		if isPortOpen(host, "21", 5*time.Second) {
+			for _, username := range usernames {
+				for _, password := range passwords {
+					checkFTP(username, password, host)
+				}
+			}
+		} else {
+			fmt.Printf("FTP port is closed on %s, skipping FTP check.\n", host)
+		}
+
+		// SSH check
+		if isPortOpen(host, "22", 5*time.Second) {
+			for _, username := range usernames {
+				for _, password := range passwords {
+					checkSSH(username, password, host)
+				}
+			}
+		} else {
+			fmt.Printf("SSH port is closed on %s, skipping SSH check.\n", host)
+		}
+
+		// WinRM check (for HTTP)
+		if isPortOpen(host, "5985", 5*time.Second) {
+			for _, username := range usernames {
+				for _, password := range passwords {
+					checkWinRM(username, password, host)
+				}
+			}
+		} else {
+			fmt.Printf("WinRM port (HTTP) is closed on %s, skipping WinRM check.\n", host)
+		}
+	}
+
 }
 
 func readLines(path string) ([]string, error) {
