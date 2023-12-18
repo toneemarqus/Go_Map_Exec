@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func checkSMB(username, password, host, domain string) bool {
+func checkSMB(username string, password string, host string, domain string, passwordCounter string) bool {
 	// Construct the smbmap command
 	var cmdArgs []string
 	cmdArgs = append(cmdArgs, "-u", username, "-p", password, "-H", host)
@@ -37,9 +37,17 @@ func checkSMB(username, password, host, domain string) bool {
 		return false
 	}
 
-	// Extract and print the specific part of the smbmap results
+	fmt.Printf("\rTesting password #%s: %s on %s with username %s", passwordCounter, password, host, username)
+	os.Stdout.Sync() // Ensure the output is flushed to the terminal
+
 	result := extractSMBMapResult(out.String())
-	fmt.Printf("\033[34mYou are connected to SMB on port 445 with credentials: %s : %s\033[0m\n", username, password) // Blue
+	if strings.Contains(result, "Authentication failed") {
+		// If you want to print a line break after a failed attempt, uncomment the next line
+		// fmt.Println()
+		return false
+	}
+
+	fmt.Printf("\n\033[34mYou are connected to SMB on port 445 with credentials: %s : %s\033[0m\n", username, password)
 	fmt.Println(result)
 
 	return true
@@ -48,23 +56,23 @@ func checkSMB(username, password, host, domain string) bool {
 func extractSMBMapResult(output string) string {
 	lines := strings.Split(output, "\n")
 
-	// Search for the line containing "IP:", "Name:", and "Status:"
-	var startIndex int
-	for i, line := range lines {
-		if strings.Contains(line, "IP:") && strings.Contains(line, "Name:") && strings.Contains(line, "Status:") {
-			startIndex = i
-			break
+	var result strings.Builder
+	var capture bool
+
+	for _, line := range lines {
+		if strings.Contains(line, "[+] IP:") {
+			capture = true
+		}
+		if capture {
+			result.WriteString(line + "\n")
 		}
 	}
 
-	if startIndex == 0 {
-		return "SMBMap result not found in output."
+	if result.Len() == 0 {
+		return "Authentication failed or SMBMap result not found in output."
 	}
 
-	// Extract the relevant lines starting from the identified index
-	result := strings.Join(lines[startIndex:], "\n")
-
-	return result
+	return result.String()
 }
 
 func checkFTP(username, password, host string) bool {
@@ -211,7 +219,7 @@ func main() {
 	flag.StringVar(&domain, "d", "", "Domain")
 	usernameFile := flag.String("uf", "", "Username file")
 	passwordFile := flag.String("pf", "", "Password file")
-
+	passwordCounter := 0
 	flag.Parse()
 
 	var allHosts []string
@@ -261,11 +269,11 @@ func main() {
 			fmt.Printf("RDP port is closed on %s, skipping RDP check.\n", host)
 		}
 
-		if isPortOpen(host, "445", 5*time.Second) { // Check for SMB port
+		if isPortOpen(host, "445", 5*time.Second) {
 			for _, username := range usernames {
 				for _, password := range passwords {
-					// Pass the domain if it's provided, otherwise pass an empty string
-					checkSMB(username, password, host, domain)
+					passwordCounter++
+					checkSMB(username, password, host, domain, strconv.Itoa(passwordCounter))
 				}
 			}
 		} else {
@@ -282,7 +290,6 @@ func main() {
 			fmt.Printf("FTP port is closed on %s, skipping FTP check.\n", host)
 		}
 
-		// SSH check
 		if isPortOpen(host, "22", 5*time.Second) {
 			for _, username := range usernames {
 				for _, password := range passwords {
@@ -293,7 +300,6 @@ func main() {
 			fmt.Printf("SSH port is closed on %s, skipping SSH check.\n", host)
 		}
 
-		// WinRM check (for HTTP)
 		if isPortOpen(host, "5985", 5*time.Second) {
 			for _, username := range usernames {
 				for _, password := range passwords {
@@ -304,7 +310,6 @@ func main() {
 			fmt.Printf("WinRM port is closed on %s, skipping WinRM check.\n", host)
 		}
 	}
-
 }
 
 func readLines(path string) ([]string, error) {
