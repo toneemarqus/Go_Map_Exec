@@ -10,8 +10,11 @@ import (
 	"os/exec" // Only one import for os/exec
 	"strconv" // This is needed for strconv.Atoi in expandHostRange
 	"strings"
+	"sync"
 	"time"
 )
+
+var consoleMutex sync.Mutex
 
 func checkSMB(username string, password string, host string, domain string, passwordCounter string) bool {
 	// Construct the smbmap command
@@ -37,9 +40,11 @@ func checkSMB(username string, password string, host string, domain string, pass
 		return false
 	}
 
-	fmt.Printf("\rTesting password #%s: %s on %s with username %s", passwordCounter, password, host, username)
-	os.Stdout.Sync() // Ensure the output is flushed to the terminal
-
+	consoleMutex.Lock()
+	fmt.Printf("\r%100s", "") // Print 100 spaces (adjust the number as needed)
+	fmt.Printf("\r\033[33mTesting password #%s: \033[31m%s\033[0m on %s with username \033[31m%s\033[0m", passwordCounter, password, host, username)
+	os.Stdout.Sync()
+	consoleMutex.Unlock()
 	result := extractSMBMapResult(out.String())
 	if strings.Contains(result, "Authentication failed") {
 		// If you want to print a line break after a failed attempt, uncomment the next line
@@ -310,6 +315,7 @@ func main() {
 			fmt.Printf("WinRM port is closed on %s, skipping WinRM check.\n", host)
 		}
 	}
+
 }
 
 func readLines(path string) ([]string, error) {
