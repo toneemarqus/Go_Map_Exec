@@ -60,8 +60,8 @@ func checkSMB(username string, secret string, host string, domain string, passwo
 		fmt.Printf("\033[31mSMB Authentication failed for user #%s with %s using %s on %s\033[0m\n", passwordCounter, username, secret, host)
 		return false
 	} else if strings.Contains(smbResult, "READ,WRITE") || strings.Contains(smbResult, "READ ONLY") {
-		fmt.Printf("\033[34mSMB Successfully authenticated #%s with %s on %s \033[0m\n", passwordCounter, username, host)
-		fmt.Println("SMBMap Result:\n" + smbResult) // Print the full smbmap result
+		fmt.Printf("\033[34mSMB Successfully authenticated #%s with %s/%s on %s \033[0m\n", passwordCounter, username, secret, host)
+		fmt.Println("\nSMBMap Result:\n" + smbResult) // Print the full smbmap result
 	} else {
 		fmt.Printf("\033[33mSMB Successfully authenticated #%s with %s on %s but no useful access was found\033[0m\n", passwordCounter, username, host)
 	}
