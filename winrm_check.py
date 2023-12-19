@@ -16,14 +16,14 @@ def run_evil_winrm(host, username, secret, use_hash):
     process = subprocess.Popen(cmd_args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     # Wait for a moment to establish connection
-    time.sleep(5)
+    time.sleep(3)
 
     # Send the 'exit' command to Evil-WinRM
     process.stdin.write(b'exit\n')
     process.stdin.flush()
 
     # Give it a moment to process and terminate
-    time.sleep(2)
+    time.sleep(1)
 
     # Terminate the process if it's still running
     if process.poll() is None:
