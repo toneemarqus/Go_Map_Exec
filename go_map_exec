@@ -117,7 +117,7 @@ func checkFTP(username, password, host string) bool {
 		return false
 	}
 
-	fmt.Printf("FTP login successful on %s with %s/%s\n", host, username, password)
+	fmt.Printf("\033[34mSuccess FTP on %s with %s/%s\033[0m\n", host, username, password)
 	return true
 }
 
@@ -135,7 +135,7 @@ func checkSSH(username, password, host string) bool {
 		return false
 	}
 
-	fmt.Printf("Success SSH on %s with %s/%s\n", host, username, password)
+	fmt.Printf("\033[34mSuccess SSH on %s with %s/%s\033[0m\n", host, username, password)
 	return true
 }
 func checkWinRM(username, password, host string) bool {
@@ -149,7 +149,19 @@ func checkWinRM(username, password, host string) bool {
 		return false
 	}
 
-	fmt.Printf("Success WinRM on %s with %s/%s\n", host, username, password)
+	if err != nil {
+		// handle error
+	} else {
+		fmt.Printf("\033[34mSuccess WinRM on %s with %s/%s\033[0m\n", host, username, password)
+
+		// Construct the command you intend to execute
+		command := fmt.Sprintf("evil-winrm -i %s -u %s -p %s", host, username, password)
+
+		// Print the command for the user
+		fmt.Printf("Command to be executed: \033[32m%s\033[0m\n", command)
+
+	}
+
 	return true
 }
 
