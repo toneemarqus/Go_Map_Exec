@@ -55,13 +55,13 @@ func checkSMB(username string, secret string, host string, domain string, passwo
 	// Use the output to extract the result
 	smbResult := extractSMBMapResult(outputStr)
 	if strings.Contains(smbResult, "Authentication failed") || strings.Contains(outputStr, "STATUS_LOGON_FAILURE") {
-		fmt.Printf("\033[31mAuthentication failed for user #%s with %s using %s on %s\033[0m\n", passwordCounter, username, secret, host)
+		fmt.Printf("\033[31mSMB Authentication failed for user #%s with %s using %s on %s\033[0m\n", passwordCounter, username, secret, host)
 		return false
 	} else if strings.Contains(smbResult, "READ,WRITE") || strings.Contains(smbResult, "READ ONLY") {
-		fmt.Printf("\033[34mSuccessfully authenticated #%s with %s on %s with READ or WRITE access\033[0m\n", passwordCounter, username, host)
+		fmt.Printf("\033[34mSMB Successfully authenticated #%s with %s on %s \033[0m\n", passwordCounter, username, host)
 		fmt.Println("SMBMap Result:\n" + smbResult) // Print the full smbmap result
 	} else {
-		fmt.Printf("\033[33mSuccessfully authenticated #%s with %s on %s but no useful access was found\033[0m\n", passwordCounter, username, host)
+		fmt.Printf("\033[33mSMB Successfully authenticated #%s with %s on %s but no useful access was found\033[0m\n", passwordCounter, username, host)
 	}
 
 	return true
@@ -172,15 +172,15 @@ func checkWinRM(username, secret, host string, useHash bool) bool {
 
 	// Interpret the output from the Python script
 	if strings.Contains(outputStr, "Connection Success") {
-		fmt.Printf("\033[34mSuccess: Authentication succeeded on %s with %s/%s\033[0m\n", host, username, secret)
+		fmt.Printf("\033[34mWINRM Success: Authentication succeeded on %s with %s/%s\033[0m\n", host, username, secret)
 		return true
 	} else if strings.Contains(outputStr, "Connection Failed") {
-		fmt.Printf("\033[31mConnection failed: Authentication failed on %s with %s/%s\033[0m\n", host, username, secret)
+		fmt.Printf("\033[31mWINRM Connection failed: Authentication failed on %s with %s/%s\033[0m\n", host, username, secret)
 		return false
 	}
 
 	// Handle unknown or unexpected output
-	fmt.Printf("\033[33mConnection status unknown on %s with %s/%s: %s\033[0m\n", host, username, secret, outputStr)
+	fmt.Printf("\033[33mWINRM Connection status unknown on %s with %s/%s: %s\033[0m\n", host, username, secret, outputStr)
 	return false
 }
 
