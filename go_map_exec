@@ -59,12 +59,10 @@ func checkSMB(username string, secret string, host string, domain string, passwo
 		return false
 	} else if strings.Contains(smbResult, "READ,WRITE") || strings.Contains(smbResult, "READ ONLY") {
 		fmt.Printf("\033[34mSuccessfully authenticated #%s with %s on %s with READ or WRITE access\033[0m\n", passwordCounter, username, host)
+		fmt.Println("SMBMap Result:\n" + smbResult) // Print the full smbmap result
 	} else {
 		fmt.Printf("\033[33mSuccessfully authenticated #%s with %s on %s but no useful access was found\033[0m\n", passwordCounter, username, host)
 	}
-
-	// Print the full smbmap output if needed for debugging or further information
-	// fmt.Println(outputStr)
 
 	return true
 }
@@ -300,7 +298,7 @@ func main() {
 		// Display a yellow message when starting to scan a host
 		fmt.Printf("\033[33mScanning host %d/%d (%s)...\033[0m\n", hostIndex+1, len(allHosts), host)
 
-		if isPortOpen(host, "3389", 5*time.Second) { // Check for RDP port
+		if isPortOpen(host, "3389", 3*time.Second) { // Check for RDP port
 			for _, username := range usernames {
 				for _, password := range passwords {
 					checkRDP(username, password, host)
@@ -310,25 +308,25 @@ func main() {
 			fmt.Printf("RDP port is closed on %s, skipping RDP check.\n", host)
 		}
 
-		if isPortOpen(host, "445", 5*time.Second) {
+		if isPortOpen(host, "445", 3*time.Second) {
 			for _, username := range usernames {
-				passwordCounter++
-				// Determine if we're using a hash or password
-				useHash := singleHash != ""
-				secret := singlePassword
-				if useHash {
-					// Prepend the "empty" LM hash if we're using an NTLM hash
-					secret = singleHash
-				}
+				for _, password := range passwords {
+					passwordCounter++
+					useHash := singleHash != "" // Determine if we're using a hash
+					secret := password          // Use the iterated password
+					if useHash {
+						secret = singleHash // Use the hash
+					}
 
-				// Call checkSMB with the determined secret and useHash flag
-				checkSMB(username, secret, host, domain, strconv.Itoa(passwordCounter), useHash)
+					// Call checkSMB with the determined secret and useHash flag
+					checkSMB(username, secret, host, domain, strconv.Itoa(passwordCounter), useHash)
+				}
 			}
 		} else {
 			fmt.Printf("SMB port is closed on %s, skipping SMB check.\n", host)
 		}
 
-		if isPortOpen(host, "21", 5*time.Second) {
+		if isPortOpen(host, "21", 3*time.Second) {
 			for _, username := range usernames {
 				for _, password := range passwords {
 					checkFTP(username, password, host)
@@ -338,7 +336,7 @@ func main() {
 			fmt.Printf("FTP port is closed on %s, skipping FTP check.\n", host)
 		}
 
-		if isPortOpen(host, "22", 5*time.Second) {
+		if isPortOpen(host, "22", 3*time.Second) {
 			for _, username := range usernames {
 				for _, password := range passwords {
 					checkSSH(username, password, host)
@@ -348,18 +346,23 @@ func main() {
 			fmt.Printf("SSH port is closed on %s, skipping SSH check.\n", host)
 		}
 
-		if isPortOpen(host, "5985", 5*time.Second) {
+		// Check for WinRM
+		// Check for WinRM
+		if isPortOpen(host, "5985", 3*time.Second) {
 			for _, username := range usernames {
-				useHash := singleHash != "" // Determine if we're using a hash
-				secret := singlePassword
-				if useHash {
-					secret = singleHash // Use the hash
+				for _, password := range passwords {
+					useHash := singleHash != "" // Determine if we're using a hash
+					secret := password          // Use the iterated password
+					if useHash {
+						secret = singleHash // Use the hash
+					}
+					checkWinRM(username, secret, host, useHash)
 				}
-				checkWinRM(username, secret, host, useHash)
 			}
 		} else {
 			fmt.Printf("WinRM port is closed on %s, skipping WinRM check.\n", host)
 		}
+
 	}
 
 }
