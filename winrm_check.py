@@ -265,6 +265,38 @@ func main() {
 	passwordCounter := 0
 	flag.Parse()
 
+	flag.Parse()
+
+	// Validate username and password flags
+	if singleUsername != "" {
+		if _, err := os.Stat(singleUsername); err == nil {
+			fmt.Println("Error: -u flag should be a string, not a file path")
+			os.Exit(1)
+		}
+	}
+
+	if singlePassword != "" {
+		if _, err := os.Stat(singlePassword); err == nil {
+			fmt.Println("Error: -p flag should be a string, not a file path")
+			os.Exit(1)
+		}
+	}
+
+	// Validate username and password file flags
+	if *usernameFile != "" {
+		if _, err := os.Stat(*usernameFile); os.IsNotExist(err) {
+			fmt.Println("Error: -uf flag should be a file path")
+			os.Exit(1)
+		}
+	}
+
+	if *passwordFile != "" {
+		if _, err := os.Stat(*passwordFile); os.IsNotExist(err) {
+			fmt.Println("Error: -pf flag should be a file path")
+			os.Exit(1)
+		}
+	}
+
 	var allHosts []string
 	for _, arg := range flag.Args() {
 		expandedHosts, err := expandHostRange(arg)
