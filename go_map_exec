@@ -289,21 +289,36 @@ func expandHostRange(hostRange string) ([]string, error) {
 }
 
 func main() {
-	fmt.Println("\n\n▄▄ •           • ▌ ▄ ·.  ▄▄▄·  ▄▄▄·    ▄▄▄ .▐▄• ▄ ▄▄▄ . ▄▄·\n\t▐█ ▀ ▪▪         ·██ ▐███▪▐█ ▀█ ▐█ ▄█    ▀▄.▀· █▌█▌▪▀▄.▀·▐█ ▌▪\n\t▄█ ▀█▄ ▄█▀▄     ▐█ ▌▐▌▐█·▄█▀▀█  ██▀·    ▐▀▀▪▄ ·██· ▐▀▀▪▄██ ▄▄\n\t▐█▄▪▐█▐█▌.▐▌    ██ ██▌▐█▌▐█ ▪▐▌▐█▪·•    ▐█▄▄▌▪▐█·█▌▐█▄▄▌▐███▌\n\t·▀▀▀▀  ▀█▄▀▪    ▀▀  █▪▀▀▀ ▀  ▀ .▀        ▀▀▀ •▀▀ ▀▀ ▀▀▀ ·▀▀▀\n\t·\n\t·\t\t\t\t\tBy: TONEE MARQUS :)")
+	var (
+		singleUsername  string
+		singlePassword  string
+		domain          string
+		usernameFile    string
+		passwordFile    string
+		singleHash      string
+		passwordCounter int
+	)
 
-	var singleUsername, singlePassword string
-	flag.StringVar(&singleUsername, "u", "", "Single username")
-	flag.StringVar(&singlePassword, "p", "", "Single password")
-	var domain string
-	flag.StringVar(&domain, "d", "", "Domain")
-	usernameFile := flag.String("uf", "", "Username file")
-	passwordFile := flag.String("pf", "", "Password file")
-	var singleHash string
-	flag.StringVar(&singleHash, "H", "", "NTLM hash")
+	flag.StringVar(&singleUsername, "u", "", "Specify a single username for the scan.")
+	flag.StringVar(&singlePassword, "p", "", "Specify a single password for the scan.")
+	flag.StringVar(&domain, "d", "", "Specify the domain for the scan.")
+	flag.StringVar(&usernameFile, "uf", "", "Specify a file containing a list of usernames for the scan.")
+	flag.StringVar(&passwordFile, "pf", "", "Specify a file containing a list of passwords for the scan.")
+	flag.StringVar(&singleHash, "H", "", "Specify an NTLM hash for the scan.")
 
-	passwordCounter := 0
-	flag.Parse()
+	// Override default usage
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "▄▄ •           • ▌ ▄ ·.  ▄▄▄·  ▄▄▄·    ▄▄▄ .▐▄• ▄ ▄▄▄ . ▄▄·\n")
+		fmt.Fprintf(os.Stderr, "▐█ ▀ ▪▪         ·██ ▐███▪▐█ ▀█ ▐█ ▄█    ▀▄.▀· █▌█▌▪▀▄.▀·▐█ ▌▪\n")
+		fmt.Fprintf(os.Stderr, "▄█ ▀█▄ ▄█▀▄     ▐█ ▌▐▌▐█·▄█▀▀█  ██▀·    ▐▀▀▪▄ ·██· ▐▀▀▪▄██ ▄▄\n")
+		fmt.Fprintf(os.Stderr, "▐█▄▪▐█▐█▌.▐▌    ██ ██▌▐█▌▐█ ▪▐▌▐█▪·•    ▐█▄▄▌▪▐█·█▌▐█▄▄▌▐███▌\n")
+		fmt.Fprintf(os.Stderr, "·▀▀▀▀  ▀█▄▀▪    ▀▀  █▪▀▀▀ ▀  ▀ .▀        ▀▀▀ •▀▀ ▀▀ ▀▀▀ ·▀▀▀\n\n")
+		fmt.Fprintf(os.Stderr, "Go Map Exec: A Password Sprying tool by Tonee Marqus\n\n")
+		fmt.Fprintf(os.Stderr, "Usage:\n")
+		flag.PrintDefaults()
+	}
 
+	// Parse the flags
 	flag.Parse()
 
 	// Validate username and password flags
@@ -322,15 +337,15 @@ func main() {
 	}
 
 	// Validate username and password file flags
-	if *usernameFile != "" {
-		if _, err := os.Stat(*usernameFile); os.IsNotExist(err) {
+	if usernameFile != "" {
+		if _, err := os.Stat(usernameFile); os.IsNotExist(err) {
 			fmt.Println("Error: -uf flag should be a file path")
 			os.Exit(1)
 		}
 	}
 
-	if *passwordFile != "" {
-		if _, err := os.Stat(*passwordFile); os.IsNotExist(err) {
+	if passwordFile != "" {
+		if _, err := os.Stat(passwordFile); os.IsNotExist(err) {
 			fmt.Println("Error: -pf flag should be a file path")
 			os.Exit(1)
 		}
@@ -349,8 +364,8 @@ func main() {
 	var usernames, passwords []string
 	var err error
 
-	if *usernameFile != "" {
-		usernames, err = readLines(*usernameFile)
+	if usernameFile != "" {
+		usernames, err = readLines(usernameFile)
 		if err != nil {
 			fmt.Printf("Error reading username file: %v\n", err)
 			return
@@ -359,8 +374,8 @@ func main() {
 		usernames = []string{singleUsername}
 	}
 
-	if *passwordFile != "" {
-		passwords, err = readLines(*passwordFile)
+	if passwordFile != "" {
+		passwords, err = readLines(passwordFile)
 		if err != nil {
 			fmt.Printf("Error reading password file: %v\n", err)
 			return
