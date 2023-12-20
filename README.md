@@ -23,11 +23,11 @@ Run the tool with the required flags. Below are some of the common flags and usa
 -pr: (OPTIONAL) Specify protocols to check (all(Default), rdp, smb, ssh, winrm).
 ```
 # Example Commands
-Scan with a Single Username and Password:
+Scan all protocols with a Single Username and Password:
 ```
 ./go_map_exec -u username -p password 10.10.10.1
 ```
-Scan Multiple Protocols:
+Scan customized Protocols:
 ```
 ./go_map_exec -pr 'ssh winrm' -u username -p password 10.10.10.1
 ```
@@ -39,7 +39,7 @@ Scan a range of IP addresses.
 ```
 ./go_map_exec -u admin -p password123 192.168.1.100 192.168.1.101 192.168.1.102
 or
-./go_map_exec -u admin -p password123 192.168.1.100 192.168.1.101-2
+./go_map_exec -u admin -p password123 192.168.1.100-3
 ```
 Scan using an NTLM hash instead of a password.
 ```
