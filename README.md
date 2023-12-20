@@ -34,6 +34,22 @@ Using a Username and Password File:
 ```
 ./go_map_exec -uf users.txt -pf passwords.txt 10.10.10.1
 ```
+Scan a range of IP addresses with a single set of credentials.
+```
+./go_map_exec -u admin -p password123 192.168.1.100 192.168.1.101 192.168.1.102
+or
+./go_map_exec -u admin -p password123 192.168.1.100 192.168.1.101-2
+```
+Scan using an NTLM hash instead of a password.
+```
+./go_map_exec -u admin -H AAD3B435B51404EEAAD3B435B51404EE 192.168.1.100
+```
+Scan with domain credentials.
+```
+./go_map_exec -u admin -p password123 -d mydomain 192.168.1.100
+```
+
+
 # Contributing
 Contributions to Go Map Exec are welcome. Please feel free to submit pull requests or open issues to improve the tool or suggest new features.
 # Disclaimer
