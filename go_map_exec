@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec" // Only one import for os/exec
@@ -60,7 +61,7 @@ func checkSMB(username string, secret string, host string, domain string, passwo
 		fmt.Printf("\033[31mSMB Authentication failed for user #%s with %s using %s on %s\033[0m\n", passwordCounter, username, secret, host)
 		return false
 	} else if strings.Contains(smbResult, "READ,WRITE") || strings.Contains(smbResult, "READ ONLY") {
-		fmt.Printf("\033[34mSMB Successfully authenticated #%s with %s/%s on %s \033[0m\n", passwordCounter, username, secret, host)
+		fmt.Printf("\033[34mSMB Successfully authenticated with credentials %s/%s on %s\033[0m\n", username, secret, host)
 		fmt.Println("\nSMBMap Result:\n" + smbResult) // Print the full smbmap result
 	} else {
 		fmt.Printf("\033[33mSMB Successfully authenticated #%s with %s on %s but no useful access was found\033[0m\n", passwordCounter, username, host)
@@ -214,7 +215,7 @@ if __name__ == "__main__":
 
 	// Interpret the output from the Python script
 	if strings.Contains(outputStr, "Connection Success") {
-		fmt.Printf("\033[34mWINRM Success: Authentication succeeded on %s with %s/%s\033[0m\n", host, username, secret)
+		fmt.Printf("\033[34mWinRM Successfully authenticated with credentials %s/%s on %s\033[0m\n", username, secret, host)
 		return true
 	} else if strings.Contains(outputStr, "Connection Failed") {
 		fmt.Printf("\033[31mWINRM Connection failed: Authentication failed on %s with %s/%s\033[0m\n", host, username, secret)
@@ -226,20 +227,66 @@ if __name__ == "__main__":
 	return false
 }
 func checkRDP(username, password, host string) bool {
-	cmd := exec.Command("xfreerdp", fmt.Sprintf("/u:%s", username), fmt.Sprintf("/p:%s", password), fmt.Sprintf("/v:%s", host))
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
+	// Setup the command to run xfreerdp
+	cmd := exec.Command("xfreerdp", fmt.Sprintf("/v:%s", host), "/cert:ignore", fmt.Sprintf("/u:%s", username), fmt.Sprintf("/p:%s", password))
 
-	err := cmd.Run()
-
+	// Create a pipe to read the standard output and error of the process
+	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		fmt.Printf("Failed on %s with %s/%s: %s\n", host, username, password, out.String())
+		fmt.Printf("Error creating stdout pipe: %s\n", err)
 		return false
 	}
 
-	fmt.Printf("Success on %s with %s/%s\n", host, username, password)
-	return true
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		fmt.Printf("Error creating stderr pipe: %s\n", err)
+		return false
+	}
+
+	// Start the xfreerdp process
+	if err := cmd.Start(); err != nil {
+		fmt.Printf("Failed to start RDP on %s with %s/%s: %s\n", host, username, password, err)
+		return false
+	}
+
+	// Use a multi-reader to read both stdout and stderr
+	stdoutReader := bufio.NewReader(io.MultiReader(stdoutPipe, stderrPipe))
+	loginFailed := false
+
+	// Goroutine to continuously read from the command's output
+	go func() {
+		for {
+			line, _, err := stdoutReader.ReadLine()
+			if err != nil {
+				if err != io.EOF {
+					fmt.Printf("Error reading output: %s\n", err)
+				}
+				break
+			}
+
+			// Check the line for patterns that indicate a failed login
+			if strings.Contains(string(line), "STATUS_LOGON_FAILURE") || strings.Contains(string(line), "ERRCONNECT_LOGON_FAILURE") {
+				loginFailed = true
+				cmd.Process.Kill()
+				break
+			}
+		}
+	}()
+
+	// Wait for 5 seconds to give xfreerdp enough time to fail or succeed
+	time.Sleep(5 * time.Second)
+
+	// Check the state of the login attempt
+	if loginFailed {
+		fmt.Printf("Failed RDP on %s with %s/%s\n", host, username, password)
+		return false
+	} else {
+		// Display success message in blue
+		fmt.Printf("\033[34mRDP Successfully authenticated with credentials %s/%s on %s\033[0m\n", username, password, host)
+		// Optionally kill the process after successful check
+		cmd.Process.Kill()
+		return true
+	}
 }
 
 func isPortOpen(host string, port string, timeout time.Duration) bool {
@@ -388,7 +435,7 @@ func main() {
 		// Display a yellow message when starting to scan a host
 		fmt.Printf("\033[33mScanning host %d/%d (%s)...\033[0m\n", hostIndex+1, len(allHosts), host)
 
-		if isPortOpen(host, "3389", 3*time.Second) { // Check for RDP port
+		if isPortOpen(host, "3389", 3*time.Second) {
 			for _, username := range usernames {
 				for _, password := range passwords {
 					checkRDP(username, password, host)
