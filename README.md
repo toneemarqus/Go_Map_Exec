@@ -20,7 +20,7 @@ Run the tool with the required flags. Below are some of the common flags and usa
 -uf: (OPTIONAL) Specify a file containing a list of usernames.
 -pf: (OPTIONAL) Specify a file containing a list of passwords.
 -H: (OPTIONAL) Specify an NTLM hash for the scan.
--pr: (OPTIONAL) Specify protocols to check (all, rdp, smb, ssh, winrm).
+-pr: (OPTIONAL) Specify protocols to check (all(Default), rdp, smb, ssh, winrm).
 ```
 # Example Commands
 Scan with a Single Username and Password:
