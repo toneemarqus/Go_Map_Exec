@@ -230,7 +230,7 @@ func checkRDP(username, password, host string) bool {
 	// Setup the command to run xfreerdp
 	cmd := exec.Command("xfreerdp", fmt.Sprintf("/v:%s", host), "/cert:ignore", fmt.Sprintf("/u:%s", username), fmt.Sprintf("/p:%s", password))
 
-	// Create a pipe to read the standard output and error of the process
+	// Create pipes to read the standard output and error of the process
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		fmt.Printf("Error creating stdout pipe: %s\n", err)
@@ -265,7 +265,9 @@ func checkRDP(username, password, host string) bool {
 			}
 
 			// Check the line for patterns that indicate a failed login
-			if strings.Contains(string(line), "STATUS_LOGON_FAILURE") || strings.Contains(string(line), "ERRCONNECT_LOGON_FAILURE") {
+			if strings.Contains(string(line), "STATUS_LOGON_FAILURE") ||
+				strings.Contains(string(line), "ERRCONNECT_LOGON_FAILURE") ||
+				strings.Contains(string(line), "ERRCONNECT_PASSWORD_CERTAINLY_EXPIRED") {
 				loginFailed = true
 				cmd.Process.Kill()
 				break
