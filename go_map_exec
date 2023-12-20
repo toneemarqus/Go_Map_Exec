@@ -58,10 +58,10 @@ func checkSMB(username string, secret string, host string, domain string, passwo
 	// Use the output to extract the result
 	smbResult := extractSMBMapResult(outputStr)
 	if strings.Contains(smbResult, "Authentication failed") || strings.Contains(outputStr, "STATUS_LOGON_FAILURE") {
-		fmt.Printf("\033[31mSMB Authentication failed for user #%s with %s using %s on %s\033[0m\n", passwordCounter, username, secret, host)
+		fmt.Printf("SMB Authentication failed for user #%s with %s using %s on %s\n", passwordCounter, username, secret, host)
 		return false
 	} else if strings.Contains(smbResult, "READ,WRITE") || strings.Contains(smbResult, "READ ONLY") {
-		fmt.Printf("\033[34mSMB Successfully authenticated with credentials %s/%s on %s\033[0m\n", username, secret, host)
+		fmt.Printf("\033[33m→ \033[34mSMB Successfully authenticated with credentials %s/%s on %s \033[33m←\033[0m\n", username, secret, host)
 		fmt.Println("\nSMBMap Result:\n" + smbResult) // Print the full smbmap result
 	} else {
 		fmt.Printf("\033[33mSMB Successfully authenticated #%s with %s on %s but no useful access was found\033[0m\n", passwordCounter, username, host)
@@ -215,10 +215,10 @@ if __name__ == "__main__":
 
 	// Interpret the output from the Python script
 	if strings.Contains(outputStr, "Connection Success") {
-		fmt.Printf("\033[34mWinRM Successfully authenticated with credentials %s/%s on %s\033[0m\n", username, secret, host)
+		fmt.Printf("\033[33m→ \033[34mWinRM Successfully authenticated with credentials %s/%s on %s \033[33m←\033[0m\n", username, secret, host)
 		return true
 	} else if strings.Contains(outputStr, "Connection Failed") {
-		fmt.Printf("\033[31mWINRM Connection failed: Authentication failed on %s with %s/%s\033[0m\n", host, username, secret)
+		fmt.Printf("WINRM Connection failed: Authentication failed on %s with %s/%s\n", host, username, secret)
 		return false
 	}
 
@@ -284,7 +284,7 @@ func checkRDP(username, password, host string) bool {
 		return false
 	} else {
 		// Display success message in blue
-		fmt.Printf("\033[34mRDP Successfully authenticated with credentials %s/%s on %s\033[0m\n", username, password, host)
+		fmt.Printf("\033[33m→ \033[34mRDP Successfully authenticated with credentials %s/%s on %s \033[33m←\033[0m\n", username, password, host)
 		// Optionally kill the process after successful check
 		cmd.Process.Kill()
 		return true
@@ -438,6 +438,7 @@ func main() {
 		fmt.Printf("\033[33mScanning host %d/%d (%s)...\033[0m\n", hostIndex+1, len(allHosts), host)
 
 		if isPortOpen(host, "3389", 3*time.Second) {
+			fmt.Printf("\033[33mChecking RDP on %s...\033[0m\n", host)
 			for _, username := range usernames {
 				for _, password := range passwords {
 					checkRDP(username, password, host)
@@ -448,6 +449,7 @@ func main() {
 		}
 
 		if isPortOpen(host, "445", 3*time.Second) {
+			fmt.Printf("\033[33mChecking SMB on %s...\033[0m\n", host)
 			for _, username := range usernames {
 				for _, password := range passwords {
 					passwordCounter++
@@ -456,8 +458,6 @@ func main() {
 					if useHash {
 						secret = singleHash // Use the hash
 					}
-
-					// Call checkSMB with the determined secret and useHash flag
 					checkSMB(username, secret, host, domain, strconv.Itoa(passwordCounter), useHash)
 				}
 			}
@@ -466,6 +466,7 @@ func main() {
 		}
 
 		if isPortOpen(host, "21", 3*time.Second) {
+			fmt.Printf("\033[33mChecking FTP on %s...\033[0m\n", host)
 			for _, username := range usernames {
 				for _, password := range passwords {
 					checkFTP(username, password, host)
@@ -476,6 +477,7 @@ func main() {
 		}
 
 		if isPortOpen(host, "22", 3*time.Second) {
+			fmt.Printf("\033[33mChecking SSH on %s...\033[0m\n", host)
 			for _, username := range usernames {
 				for _, password := range passwords {
 					checkSSH(username, password, host)
@@ -485,9 +487,8 @@ func main() {
 			fmt.Printf("SSH port is closed on %s, skipping SSH check.\n", host)
 		}
 
-		// Check for WinRM
-		// Check for WinRM
 		if isPortOpen(host, "5985", 3*time.Second) {
+			fmt.Printf("\033[33mChecking WinRM on %s...\033[0m\n", host)
 			for _, username := range usernames {
 				for _, password := range passwords {
 					useHash := singleHash != "" // Determine if we're using a hash
@@ -501,7 +502,6 @@ func main() {
 		} else {
 			fmt.Printf("WinRM port is closed on %s, skipping WinRM check.\n", host)
 		}
-
 	}
 
 }
