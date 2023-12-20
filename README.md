@@ -34,7 +34,7 @@ Using a Username and Password File:
 ```
 ./go_map_exec -uf users.txt -pf passwords.txt 10.10.10.1
 ```
-Scan a range of IP addresses with a single set of credentials.
+Scan a range of IP addresses.
 ```
 ./go_map_exec -u admin -p password123 192.168.1.100 192.168.1.101 192.168.1.102
 or
