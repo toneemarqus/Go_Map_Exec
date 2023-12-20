@@ -129,47 +129,6 @@ func extractSMBMapResult(output string) string {
 	return result.String()
 }
 
-func checkFTP(username, password, host string) bool {
-	// Prepare the FTP command sequence
-	ftpCmd := fmt.Sprintf("open %s\nuser %s %s\nbye\n", host, username, password)
-	cmd := exec.Command("ftp")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-
-	// Pipe the commands into the FTP client
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		fmt.Printf("Failed to open stdin to ftp command: %s\n", err)
-		return false
-	}
-
-	// Start the FTP client
-	if err := cmd.Start(); err != nil {
-		fmt.Printf("Failed to start ftp command: %s\n", err)
-		return false
-	}
-
-	// Send the commands to the FTP client
-	_, err = stdin.Write([]byte(ftpCmd))
-	if err != nil {
-		fmt.Printf("Failed to write to stdin: %s\n", err)
-		return false
-	}
-	stdin.Close()
-
-	// Wait for the FTP client to finish
-	err = cmd.Wait()
-
-	if err != nil {
-		fmt.Printf("FTP login failed on %s with %s/%s: %s\n", host, username, password, out.String())
-		return false
-	}
-
-	fmt.Printf("\033[34mSuccess FTP on %s with %s/%s\033[0m\n", host, username, password)
-	return true
-}
-
 func checkSSH(username, password, host string) bool {
 	// SSH command with sshpass for password authentication
 	cmd := exec.Command("sshpass", "-p", password, "ssh", fmt.Sprintf("%s@%s", username, host))
@@ -181,11 +140,11 @@ func checkSSH(username, password, host string) bool {
 	err := cmd.Run()
 
 	if err != nil {
-		fmt.Printf("SSH Authentication failed for %s on %s\n", username, host)
+		fmt.Printf("SSH Authentication failed for %s/%s on %s\n", username, password, host)
 		return false
 	}
 
-	fmt.Printf("\033[33m→ \033[34mSSH Successfully authenticated with credentials %s on %s \033[33m←\033[0m\n", username, host)
+	fmt.Printf("\033[33m→ \033[34mSSH Successfully authenticated with credentials %s/%s on %s \033[33m←\033[0m\n", username, password, host)
 	return true
 }
 
@@ -523,17 +482,6 @@ func main() {
 			}
 		} else {
 			fmt.Printf("SMB port is closed on %s, skipping SMB check.\n", host)
-		}
-
-		if isPortOpen(host, "21", 3*time.Second) {
-			fmt.Printf("\033[33mChecking FTP on %s...\033[0m\n", host)
-			for _, username := range usernames {
-				for _, password := range passwords {
-					checkFTP(username, password, host)
-				}
-			}
-		} else {
-			fmt.Printf("FTP port is closed on %s, skipping FTP check.\n", host)
 		}
 
 		if isPortOpen(host, "22", 3*time.Second) {
