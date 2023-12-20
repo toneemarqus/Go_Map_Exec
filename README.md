@@ -22,8 +22,8 @@ Run the tool with the required flags. Below are some of the common flags and usa
 -pr: (OPTIONAL) Specify protocols to check (all, rdp, smb, ssh, winrm).
 ```
 # Example Commands
-```
 Scan with a Single Username and Password:
+```
 ./go_map_exec -u username -p password 10.10.10.1
 ```
 Scan Multiple Protocols:
