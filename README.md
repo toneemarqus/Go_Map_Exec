@@ -11,6 +11,7 @@ Go Map Exec is a versatile network password spraying tool designed to check vari
 # Installation
 Just download the binary and run it :)
 # Usage
+```
 Run the tool with the required flags. Below are some of the common flags and usage examples:
 -u: Specify a single username for the scan.
 -p: Specify a single password for the scan.
@@ -19,13 +20,16 @@ Run the tool with the required flags. Below are some of the common flags and usa
 -pf: (OPTIONAL) Specify a file containing a list of passwords.
 -H: (OPTIONAL) Specify an NTLM hash for the scan.
 -pr: (OPTIONAL) Specify protocols to check (all, rdp, smb, ssh, winrm).
+```
 # Example Commands
+```
 Scan with a Single Username and Password:
 ./go_map_exec -u username -p password 10.10.10.1
 Scan Multiple Protocols:
 ./go_map_exec -pr 'ssh winrm' -u username -p password 10.10.10.1
 Using a Username and Password File:
 ./go_map_exec -uf users.txt -pf passwords.txt 10.10.10.1
+```
 # Contributing
 Contributions to Go Map Exec are welcome. Please feel free to submit pull requests or open issues to improve the tool or suggest new features.
 # Disclaimer
