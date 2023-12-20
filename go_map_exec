@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"os/exec" // Only one import for os/exec
+	"runtime"
 	"strconv" // This is needed for strconv.Atoi in expandHostRange
 	"strings"
 	"sync"
@@ -19,6 +20,42 @@ var (
 	consoleMutex sync.Mutex
 )
 
+func ensureCommandInstalled(command string, installCommand string) error {
+	// Check if the command is not installed
+	_, err := exec.LookPath(command)
+	if err != nil {
+		fmt.Printf("%s is not installed. Attempting to install...\n", command)
+
+		// Install the command based on the OS
+		var installCmd *exec.Cmd
+		switch runtime.GOOS {
+		case "linux":
+			installCmd = exec.Command("sudo", "apt", "install", "-y", installCommand)
+		case "darwin":
+			installCmd = exec.Command("brew", "install", installCommand)
+		default:
+			return fmt.Errorf("Unsupported OS: %s", runtime.GOOS)
+		}
+
+		// Run the installation command
+		err := installCmd.Run()
+		if err != nil {
+			return err // Installation failed
+		}
+
+		// Check again if the command is installed
+		_, err = exec.LookPath(command)
+		if err == nil {
+			fmt.Printf("%s installed successfully.\n", command)
+		} else {
+			return fmt.Errorf("Failed to install %s", command)
+		}
+	} else {
+		//fmt.Printf("%s is already installed.\n", command)
+	}
+
+	return nil
+}
 func checkSMB(username string, secret string, host string, domain string, passwordCounter string, useHash bool) bool {
 	// Construct the smbmap command
 	var cmdArgs []string
@@ -134,20 +171,21 @@ func checkFTP(username, password, host string) bool {
 }
 
 func checkSSH(username, password, host string) bool {
-	// Using sshpass for simplicity; replace with appropriate SSH handling logic
-	cmd := exec.Command("sshpass", "-p", password, "ssh", fmt.Sprintf("%s@%s", username, host), "exit")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
+	// SSH command with sshpass for password authentication
+	cmd := exec.Command("sshpass", "-p", password, "ssh", fmt.Sprintf("%s@%s", username, host))
+
+	// Suppress command output
+	cmd.Stdout = nil
+	cmd.Stderr = nil
 
 	err := cmd.Run()
 
 	if err != nil {
-		fmt.Printf("Failed SSH on %s with %s/%s: %s\n", host, username, password, out.String())
+		fmt.Printf("SSH Authentication failed for %s on %s\n", username, host)
 		return false
 	}
 
-	fmt.Printf("\033[34mSuccess SSH on %s with %s/%s\033[0m\n", host, username, password)
+	fmt.Printf("\033[33m→ \033[34mSSH Successfully authenticated with credentials %s on %s \033[33m←\033[0m\n", username, host)
 	return true
 }
 
@@ -338,6 +376,28 @@ func expandHostRange(hostRange string) ([]string, error) {
 }
 
 func main() {
+	if err := ensureCommandInstalled("sshpass", "sshpass"); err != nil {
+		fmt.Printf("Failed to install sshpass: %v\n", err)
+		return
+	}
+
+	// Ensure evil-winrm is installed
+	if err := ensureCommandInstalled("evil-winrm", "evil-winrm"); err != nil {
+		fmt.Printf("Failed to install evil-winrm: %v\n", err)
+		return
+	}
+
+	// Ensure smbmap is installed
+	if err := ensureCommandInstalled("smbmap", "smbmap"); err != nil {
+		fmt.Printf("Failed to install smbmap: %v\n", err)
+		return
+	}
+
+	// Ensure xfreerdp is installed
+	if err := ensureCommandInstalled("xfreerdp", "freerdp"); err != nil {
+		fmt.Printf("Failed to install xfreerdp: %v\n", err)
+		return
+	}
 	var (
 		singleUsername  string
 		singlePassword  string
