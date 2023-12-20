@@ -25,8 +25,12 @@ Run the tool with the required flags. Below are some of the common flags and usa
 ```
 Scan with a Single Username and Password:
 ./go_map_exec -u username -p password 10.10.10.1
+```
+```
 Scan Multiple Protocols:
 ./go_map_exec -pr 'ssh winrm' -u username -p password 10.10.10.1
+```
+```
 Using a Username and Password File:
 ./go_map_exec -uf users.txt -pf passwords.txt 10.10.10.1
 ```
