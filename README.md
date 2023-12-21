@@ -59,6 +59,16 @@ Scan with domain credentials.
 ```
 ./go_map_exec -u admin -p password123 -d mydomain 192.168.1.100
 ```
+# Contributing to Go Map Exec
+
+I welcome contributions from everyone! Here are some ways you can contribute:
+
+1. **Reporting Bugs**: If you find a bug, please use the Issues tab to report it, providing as much detail as possible.
+
+2. **Feature Suggestions**: Have an idea to improve Go Map Exec? We'd love to hear it! Submit your suggestions through the Issues tab.
+
+3. **Pull Requests**: Want to directly contribute to the code? Great! Please submit a pull request with a clear description of your changes and any necessary tests or documentation.
+Thank you for your interest in improving Go Map Exec!
 
 # Disclaimer
 Go Map Exec is intended for legal purposes only. Users are responsible for complying with applicable laws. The developer is not liable for misuse or damage caused by this tool.
