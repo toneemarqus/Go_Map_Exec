@@ -24,7 +24,7 @@ func ensureCommandInstalled(command string, installCommand string) error {
 	// Check if the command is not installed
 	_, err := exec.LookPath(command)
 	if err != nil {
-		fmt.Printf("%s is not installed. Attempting to install...\n ", command)
+		fmt.Printf("%s is not installed. Attempting to install...\n", command)
 
 		// Install the command based on the OS
 		var installCmd *exec.Cmd
