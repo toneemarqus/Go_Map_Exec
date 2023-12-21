@@ -14,6 +14,7 @@ This screenshot is from Explotion machine from HackTheBox!
 IF tou are on kali latest verion:
 ```
 Just download the binary and run it :)
+```
 If you are anywhere else and having errors, clone the repo and build it yourself to match your system tool versions:
 ```
 git clone https://github.com/toneemarqus/Go_Map_Exec
