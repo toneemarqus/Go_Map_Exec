@@ -394,8 +394,8 @@ func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "▄▄ •    SMB    • ▌ ▄ ·.  ▄▄▄·  ▄▄▄·    ▄▄▄ .▐▄• ▄ ▄▄▄ . ▄▄·\n")
 		fmt.Fprintf(os.Stderr, "▐█ ▀ ▪▪     RDP ·██ ▐███▪▐█ ▀█ ▐█ ▄█    ▀▄.▀· █▌█▌▪▀▄.▀·▐█ ▌▪\n")
-		fmt.Fprintf(os.Stderr, "▄█ ▀█▄ ▄█▀▄     ▐█ ▌▐▌▐█·▄█▀▀█  ██▀·    ▐▀▀▪▄ ·██· ▐▀▀▪▄██ ▄▄\n")
-		fmt.Fprintf(os.Stderr, "▐█▄▪▐█▐█▌.▐▌    ██ ██▌▐█▌▐█ ▪▐▌▐█▪·• SSH ▐█▄▄▌▪▐█·█▌▐█▄▄▌▐███▌\n")
+		fmt.Fprintf(os.Stderr, "▄█ ▀█▄ ▄█▀▄  SSH▐█ ▌▐▌▐█·▄█▀▀█  ██▀·    ▐▀▀▪▄ ·██· ▐▀▀▪▄██ ▄▄\n")
+		fmt.Fprintf(os.Stderr, "▐█▄▪▐█▐█▌.▐▌    ██ ██▌▐█▌▐█ ▪▐▌▐█▪·•     ▐█▄▄▌▪▐█·█▌▐█▄▄▌▐███▌\n")
 		fmt.Fprintf(os.Stderr, "·▀▀▀▀  ▀█▄▀▪    ▀▀  █▪▀▀▀ ▀  ▀ .▀  WinRM  ▀▀▀ •▀▀ ▀▀ ▀▀▀ ·▀▀▀\n\n")
 		fmt.Fprintf(os.Stderr, "Go Map Exec: A Network Password Sprying Tool by Tonee Marqus\n\n")
 		fmt.Fprintf(os.Stderr, "Usage:\n")
