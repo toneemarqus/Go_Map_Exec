@@ -377,10 +377,10 @@ func main() {
 	flag.StringVar(&singlePassword, "p", "", "Specify a single password for the scan.")
 	flag.StringVar(&domain, "d", "", "(OPTIONAL) Specify the domain for the scan.")
 	flag.StringVar(&usernameFile, "uf", "", "(OPTIONAL) Specify a file containing a list of usernames for the scan.")
-	flag.StringVar(&passwordFile, "pf", "", "(OPTIONAL) Specify a file containing a list of passwords for the scan.(make sure to use single quotes for multiple protocols eg. -pr 'winrm ssh smb')")
+	flag.StringVar(&passwordFile, "pf", "", "(OPTIONAL) Specify a file containing a list of passwords for the scan.")
 	flag.StringVar(&singleHash, "H", "", "(OPTIONAL) Specify an NTLM hash for the scan.")
 	var protocols []string
-	flag.Var(&stringSliceFlag{&protocols}, "pr", "(OPTIONAL) Specify protocols to check: all (Default), rdp, smb, ssh, winrm")
+	flag.Var(&stringSliceFlag{&protocols}, "pr", "(OPTIONAL) Specify protocols to check: all (Default), rdp, smb, ssh, winrm (make sure to use single quotes for multiple protocols eg. -pr 'winrm ssh smb')")
 	flag.Parse()
 	if len(protocols) == 0 {
 		protocols = append(protocols, "all")
