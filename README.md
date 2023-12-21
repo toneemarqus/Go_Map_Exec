@@ -20,9 +20,9 @@ git clone https://github.com/toneemarqus/Go_Map_Exec
 cd Go_Map_Exec/
 go build go_map_exec.go
 ```
-```
-# Usage
 
+# Usage
+```
 Run the tool with the required flags. Below are some of the common flags and usage examples:
 -u: Specify a single username for the scan.
 -p: Specify a single password for the scan.
