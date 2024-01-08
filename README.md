@@ -19,6 +19,7 @@ If you are anywhere else and having errors, clone the repo and build it yourself
 ```
 git clone https://github.com/toneemarqus/Go_Map_Exec
 cd Go_Map_Exec/
+apt install golang-go
 go build go_map_exec.go
 ```
 
