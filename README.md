@@ -77,3 +77,7 @@ Thank you for your interest in improving Go Map Exec!
 
 # Disclaimer
 Go Map Exec is intended for legal purposes only. Users are responsible for complying with applicable laws. The developer is not liable for misuse or damage caused by this tool.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=toneemarqus/Go_Map_Exec&type=Date)](https://star-history.com/#toneemarqus/Go_Map_Exec&Date)
